@@ -23,10 +23,10 @@ export default {
           let replyText = "متأسفانه نتوانستم پاسخی پیدا کنم.";
 
           try {
-            // استفاده از مدل gemini-2.5-flash که جدیدتر، سریع‌تر و برای جستجوی اینترنت در حساب رایگان بهینه‌تر است
-            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`;
+            // استفاده از مدل gemini-3.6-flash دقیقاً طبق درخواست سیستم گوگل
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${env.GEMINI_API_KEY}`;
             
-            // بدنه درخواست با پشتیبانی از سرچ گوگل (Grounding) و ساختار صحیح
+            // بدنه درخواست با پشتیبانی از سرچ گوگل
             const aiResponse = await fetch(geminiUrl, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -49,12 +49,7 @@ export default {
                replyText = replyText.replace(/\[\d+\]/g, ''); 
             } else if (aiData.error) {
                console.log("Gemini API Error:", aiData.error.message);
-               // اگر باز هم 429 داد، پیام بهتری بدهیم
-               if(aiData.error.code === 429) {
-                  replyText = "مغزم خیلی خسته است (محدودیت درخواست گوکل). لطفاً چند ثانیه دیگر دوباره بپرس!";
-               } else {
-                  replyText = `خطای ارتباط با مغز اصلی: ${aiData.error.message}`;
-               }
+               replyText = `خطای ارتباط با مغز اصلی: ${aiData.error.message}`;
             } else {
                console.log("Unexpected AI Data:", JSON.stringify(aiData));
             }
