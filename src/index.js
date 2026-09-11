@@ -23,10 +23,10 @@ export default {
           let replyText = "متأسفانه نتوانستم پاسخی پیدا کنم.";
 
           try {
-            // استفاده از مدل جدید و پایدار gemini-3.5-flash که در Free Tier پشتیبانی می‌شود
-            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${env.GEMINI_API_KEY}`;
+            // استفاده از مدل gemini-2.5-flash که جدیدتر، سریع‌تر و برای جستجوی اینترنت در حساب رایگان بهینه‌تر است
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`;
             
-            // بدنه درخواست با پشتیبانی از سرچ گوگل (Grounding)
+            // بدنه درخواست با پشتیبانی از سرچ گوگل (Grounding) و ساختار صحیح
             const aiResponse = await fetch(geminiUrl, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -34,7 +34,7 @@ export default {
                 system_instruction: {
                   parts: [{ text: "تو یک دستیار هوش مصنوعی هوشمند، دوستانه و شوخ‌طبع به نام «جوجو» هستی. همیشه به زبان فارسی روان صحبت کن." }]
                 },
-                contents: [{ parts: [{ text: text }] }],
+                contents: [{ role: "user", parts: [{ text: text }] }],
                 // فعال‌سازی ابزار جستجوی گوگل برای دسترسی به اطلاعات زنده اینترنت
                 tools: [{ googleSearch: {} }]
               })
@@ -44,9 +44,17 @@ export default {
             
             if (aiData.candidates && aiData.candidates.length > 0) {
                replyText = aiData.candidates[0].content.parts[0].text;
+               
+               // حذف ارجاعات اضافی متن که گاهی گوگل در انتهای جواب می‌آورد
+               replyText = replyText.replace(/\[\d+\]/g, ''); 
             } else if (aiData.error) {
                console.log("Gemini API Error:", aiData.error.message);
-               replyText = `خطای ارتباط با مغز اصلی: ${aiData.error.message}`;
+               // اگر باز هم 429 داد، پیام بهتری بدهیم
+               if(aiData.error.code === 429) {
+                  replyText = "مغزم خیلی خسته است (محدودیت درخواست گوکل). لطفاً چند ثانیه دیگر دوباره بپرس!";
+               } else {
+                  replyText = `خطای ارتباط با مغز اصلی: ${aiData.error.message}`;
+               }
             } else {
                console.log("Unexpected AI Data:", JSON.stringify(aiData));
             }
