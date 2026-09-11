@@ -1,6 +1,0 @@
-{
-  "name": "jojo-bot",
-  "version": "1.0.0",
-  "description": "JOJO Telegram AI Bot",
-  "main": "src/index.js"
-}
