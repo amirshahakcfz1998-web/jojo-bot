@@ -21,44 +21,44 @@ export default {
           const text = update.message.text;
 
           let replyText = "متأسفانه نتوانستم پاسخی پیدا کنم.";
+          const systemPrompt = "تو یک دستیار هوش مصنوعی هوشمند، دوستانه و شوخ‌طبع به نام «جوجو» هستی. همیشه به زبان فارسی روان صحبت کن.";
 
           try {
-            // استفاده از مدل gemini-3.6-flash دقیقاً طبق درخواست سیستم گوگل
+            // تلاش اول: اتصال به مغز اصلی (Google Gemini) برای دسترسی به اینترنت
             const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${env.GEMINI_API_KEY}`;
             
-            // بدنه درخواست با پشتیبانی از سرچ گوگل
             const aiResponse = await fetch(geminiUrl, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                system_instruction: {
-                  parts: [{ text: "تو یک دستیار هوش مصنوعی هوشمند، دوستانه و شوخ‌طبع به نام «جوجو» هستی. همیشه به زبان فارسی روان صحبت کن." }]
-                },
+                system_instruction: { parts: [{ text: systemPrompt }] },
                 contents: [{ role: "user", parts: [{ text: text }] }],
-                // فعال‌سازی ابزار جستجوی گوگل برای دسترسی به اطلاعات زنده اینترنت
-                tools: [{ googleSearch: {} }]
+                tools: [{ googleSearch: {} }] // فعال‌سازی سرچ زنده
               })
             });
 
             const aiData = await aiResponse.json();
             
             if (aiData.candidates && aiData.candidates.length > 0) {
+               // گوگل جواب داد
                replyText = aiData.candidates[0].content.parts[0].text;
-               
-               // حذف ارجاعات اضافی متن که گاهی گوگل در انتهای جواب می‌آورد
-               replyText = replyText.replace(/\[\d+\]/g, ''); 
+               replyText = replyText.replace(/\[\d+\]/g, ''); // پاکسازی لینک‌های اضافی
+            } else if (aiData.error && aiData.error.message.includes("quota")) {
+               // خطا: محدودیت گوگل (Quota Exceeded) - فعال‌سازی مغز پشتیبان
+               console.log("Gemini Quota Exceeded. Switching to Fallback AI...");
+               replyText = await useFallbackAI(text, systemPrompt, env);
             } else if (aiData.error) {
+               // خطای دیگری از سمت گوگل
                console.log("Gemini API Error:", aiData.error.message);
-               replyText = `خطای ارتباط با مغز اصلی: ${aiData.error.message}`;
-            } else {
-               console.log("Unexpected AI Data:", JSON.stringify(aiData));
+               replyText = `مغز اصلی دچار مشکل شد: ${aiData.error.message}`;
             }
-          } catch (aiError) {
-             console.log("Fetch Error:", aiError);
-             replyText = "اتصال من به اینترنت قطع شد!";
+          } catch (error) {
+             // خطای قطع اتصال - فعال‌سازی مغز پشتیبان
+             console.log("Connection Error to Gemini. Switching to Fallback AI...");
+             replyText = await useFallbackAI(text, systemPrompt, env);
           }
 
-          // ارسال جواب به کاربر
+          // ارسال نهایی جواب به کاربر
           const sendMessageUrl = `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`;
           await fetch(sendMessageUrl, {
             method: "POST",
@@ -76,5 +76,29 @@ export default {
     }
 
     return new Response("JOJO is active!", { headers: { "content-type": "text/plain" } });
-  },
+  }
 };
+
+// تابع مغز پشتیبان (استفاده از Cloudflare AI هنگام قطع شدن گوگل)
+async function useFallbackAI(userText, systemPrompt, env) {
+  try {
+    if (!env.AI) {
+      return "اوه! مغز اصلی من محدود شده و مغز پشتیبان هم فعال نیست.";
+    }
+
+    const messages = [
+      { role: "system", content: systemPrompt + " مهم: تو الان به اینترنت متصل نیستی. اگر سوال درباره اطلاعات زنده (مثل قیمت دلار یا اخبار امروز) بود، عذرخواهی کن و بگو موقتاً دسترسی به اینترنت ندارم." },
+      { role: "user", content: userText }
+    ];
+
+    const aiResponse = await env.AI.run(
+      '@cf/meta/llama-3.1-8b-instruct',
+      { messages: messages }
+    );
+    
+    return "[پاسخ از مغز پشتیبان 🧠]\n\n" + aiResponse.response;
+  } catch (fallbackError) {
+    console.log("Fallback AI Error:", fallbackError);
+    return "متاسفم، هم مغز اصلی و هم مغز پشتیبان من از کار افتاده‌اند!";
+  }
+                 }
