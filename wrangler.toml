@@ -1,0 +1,7 @@
+name = "jojo-ai-bot"
+main = "src/index.ts"
+compatibility_date = "2024-03-20"
+compatibility_flags = ["nodejs_compat"]
+این مقادیر هرگز نباید در کد هاردکد شوند. از طریق Secretها در پنل کلودفلر تزریق می‌شوند.
+[vars]
+ENVIRONMENT = "production"
