@@ -20,19 +20,22 @@ export default {
           const chatId = update.message.chat.id;
           const text = update.message.text;
 
-          let replyText = "مشکلی پیش آمد. لطفا دوباره تلاش کن.";
+          let replyText = "متأسفانه نتوانستم پاسخی پیدا کنم.";
 
           try {
-            // 1. تنظیمات هوش مصنوعی Gemini و فعال‌سازی قابلیت جستجو در اینترنت
-            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${env.GEMINI_API_KEY}`;
-            const prompt = `تو یک دستیار هوش مصنوعی هوشمند، دوستانه و شوخ‌طبع به نام «جوجو» هستی. همیشه به زبان فارسی روان صحبت کن. به این پیام کاربر پاسخ بده: ${text}`;
+            // استفاده از مدل جدید و پایدار gemini-3.5-flash که در Free Tier پشتیبانی می‌شود
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${env.GEMINI_API_KEY}`;
             
+            // بدنه درخواست با پشتیبانی از سرچ گوگل (Grounding)
             const aiResponse = await fetch(geminiUrl, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                // این بخش به جوجو اجازه می‌دهد از گوگل سرچ استفاده کند
+                system_instruction: {
+                  parts: [{ text: "تو یک دستیار هوش مصنوعی هوشمند، دوستانه و شوخ‌طبع به نام «جوجو» هستی. همیشه به زبان فارسی روان صحبت کن." }]
+                },
+                contents: [{ parts: [{ text: text }] }],
+                // فعال‌سازی ابزار جستجوی گوگل برای دسترسی به اطلاعات زنده اینترنت
                 tools: [{ googleSearch: {} }]
               })
             });
@@ -41,15 +44,18 @@ export default {
             
             if (aiData.candidates && aiData.candidates.length > 0) {
                replyText = aiData.candidates[0].content.parts[0].text;
+            } else if (aiData.error) {
+               console.log("Gemini API Error:", aiData.error.message);
+               replyText = `خطای ارتباط با مغز اصلی: ${aiData.error.message}`;
             } else {
-               console.log("AI Data Error:", JSON.stringify(aiData));
+               console.log("Unexpected AI Data:", JSON.stringify(aiData));
             }
           } catch (aiError) {
              console.log("Fetch Error:", aiError);
-             replyText = "اوه، اتصال من به مغز اصلی قطع شد! (خطای ارتباط با هوش مصنوعی)";
+             replyText = "اتصال من به اینترنت قطع شد!";
           }
 
-          // 2. ارسال جواب به کاربر در تلگرام
+          // ارسال جواب به کاربر
           const sendMessageUrl = `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`;
           await fetch(sendMessageUrl, {
             method: "POST",
@@ -66,6 +72,6 @@ export default {
       }
     }
 
-    return new Response("JOJO is active with Gemini!", { headers: { "content-type": "text/plain" } });
+    return new Response("JOJO is active!", { headers: { "content-type": "text/plain" } });
   },
 };
